@@ -30,7 +30,7 @@ MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 def get_llm_image_response(base64_image):
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model="gpt-4o",
         messages=[
             {
             "role": "user",       
