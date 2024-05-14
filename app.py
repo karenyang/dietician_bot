@@ -35,10 +35,10 @@ def get_llm_image_response(base64_image):
             {
             "role": "user",       
             "content": [
-                {"type": "text", "text": "You are a health dietician coach and you will help users quantify the food they are consuming from photos. Write a list of food ingredient and their quantity in this image. For example: - baked chicken breast, 2 piece \n - brocolli, a cup"},
+                {"type": "text", "text": "You are a health dietician coach and you will help users quantify the food they are consuming from photos. Write a list of food ingredient and their quantity in this image. For example: - baked chicken breast, 2 piece \n - brocolli, a cup. Only list items of food and their amount."},
                 {
                     "type": "image_url",
-                    "image_url": { "url": f"data:image/jpeg;base64,{base64_image}"}
+                    "image_url": { "url": f"data:image/jpeg;base64,{base64_image}", "detail": "low"}
                 },
             ],
             }
@@ -53,7 +53,7 @@ def get_llm_nutrition_summary(user_description):
         messages=[
             {
             "role": "system",
-            "content": "You are a health dietician coach and you will help users compute the macro nutrients from a description of food they ate. List each food name, protein, carbonhydrate, fat, and calories, in a list of json." 
+            "content": "You are a health dietician coach and you will help users compute the macro nutrients from a description of food they ate. List each food name, protein, carbonhydrate, and fat, in json format. For example: {'food': [{'name': 'apple', 'protein': 0.5, 'carbohydrate': 25, 'fat': 0.5}]}" 
             },
             {
             "role": "user",
@@ -90,7 +90,7 @@ def analyze_image(upload_img, default_image=False):
     col2.write("### Food Analysis :cook:")
     col2.write("\n")
     if default_image:
-        image_llm_response = "Based on the image provided, here is a list of the food ingredients and their estimated quantities:\n- Grilled steak, 1 piece (about 8 ounces)\n- Herb butter, 1 dollop (approximately 1 tablespoon)\n- Roasted potatoes, about 6 pieces (half a cup)\n- Steamed broccoli, 1 cup"
+        image_llm_response = "- Grilled steak, 1 piece (approximately 6-8 ounces)\n- Broccoli, 1 cup\n- Roasted baby potatoes, 1/2 cup\n- Herb butter, 1 tablespoon"
     else:
         base64_image = encode_image(upload_img)
         image_llm_response = get_llm_image_response(base64_image=base64_image)
@@ -103,7 +103,7 @@ def analyze_image(upload_img, default_image=False):
 def summarize_nutrition_table(description, default_image=False):
     col2.write("\n### Nutrition Summary")
     if default_image:
-        nutrition_response = [{'name': 'Grilled steak', 'protein': '64g', 'carbohydrate': '0g', 'fat': '26g', 'calories': '500'}, {'name': 'Herb butter', 'protein': '0g', 'carbohydrate': '0g', 'fat': '11g', 'calories': '100'}, {'name': 'Roasted potatoes', 'protein': '5g', 'carbohydrate': '30g', 'fat': '2g', 'calories': '150'}, {'name': 'Steamed broccoli', 'protein': '4g', 'carbohydrate': '6g', 'fat': '0g', 'calories': '50'}, {'name': 'Total', 'protein': 73, 'carbohydrate': 36, 'fat': 39, 'calories': 800}]
+        nutrition_response = [{"name": "Grilled steak", "protein": "60.0", "carbohydrate": "0.0", "fat": "20.0", "calories": "420.0"}, {"name": "Broccoli", "protein": "2.0", "carbohydrate": "6.0", "fat": "0.0", "calories": "32.0"}, {"name": "Roasted baby potatoes", "protein": "2.0", "carbohydrate": "15.0", "fat": "0.0", "calories": "68.0"}, {"name": "Herb butter", "protein": "0.0", "carbohydrate": "0.0", "fat": "11.0", "calories": "99.0"}, {"name": "Total", "protein": "64.0", "carbohydrate": "21.0", "fat": "31.0", "calories": "619.0"}]
     else:
         response = get_llm_nutrition_summary(user_description=description)
         logging.info(f"get_llm_nutrition_summary returns: {response}")
@@ -111,16 +111,21 @@ def summarize_nutrition_table(description, default_image=False):
         first_key = list(res.keys())[0]
         nutrition_response = res[first_key]
 
-        total_protein = 0
-        total_carbohydrate= 0
-        total_fat = 0
-        total_calories = 0
+        protein = []
+        carbohydrate= []
+        fat = []
+        calories = []
         for food in nutrition_response:
-            total_protein += float(str(food['protein']).rstrip('g'))
-            total_carbohydrate += float(str(food['carbohydrate']).rstrip('g'))
-            total_fat += float(str(food['fat']).rstrip('g'))
-            total_calories +=float(str(food['calories']).rstrip('g'))
-        nutrition_response.append({"name": "Total", "protein": int(total_protein), "carbohydrate": int(total_carbohydrate), "fat": int(total_fat), "calories": int(total_calories)})
+            p = float(str(food['protein']).rstrip('g'))
+            c = float(str(food['carbohydrate']).rstrip('g'))
+            f = float(str(food['fat']).rstrip('g'))
+            protein.append(p)
+            carbohydrate.append(c)
+            fat.append(f)
+            cal = 4*c + 4*p + 9*f
+            calories.append(cal)
+            food['calories'] = cal
+        nutrition_response.append({"name": "Total", "protein": float(sum(protein)), "carbohydrate": float(sum(carbohydrate)), "fat": float(sum(fat)), "calories": float(sum(calories))})
         logging.info(f"nutrition table: {nutrition_response}")
 
     df = pd.DataFrame(nutrition_response).astype(str)
